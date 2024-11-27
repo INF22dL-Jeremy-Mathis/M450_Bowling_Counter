@@ -349,8 +349,6 @@ namespace M450_Bowling_Counter.Tests
         [TestMethod]
         public void Test_11_ExtraShotsInLastFrameAfterStrike()
         {
-            // Test Case 11: Extra Shots in Last Frame after Strike
-
             // Arrange
             var mockInputProvider = new Mock<IInputProvider>();
             var mockOutputProvider = new Mock<IOutputProvider>();
@@ -362,13 +360,14 @@ namespace M450_Bowling_Counter.Tests
             var Throws = new List<int>();
             for (int i = 0; i < 9; i++)
             {
-                Throws.Add(3);
-                Throws.Add(4);
+                Throws.Add(3); // First roll
+                Throws.Add(4); // Second roll
             }
-            Throws.Add(10); // Strike in 10th frame
+            Throws.Add(10); // Strike in the 10th frame
             Throws.Add(10); // Extra roll 1
             Throws.Add(10); // Extra roll 2
 
+            // Setup sequence for mocked input
             var pinsSequence = mockInputProvider.SetupSequence(ip => ip.GetPinsKnockedDown(It.IsAny<int>()));
             foreach (var pins in Throws)
             {
@@ -381,40 +380,62 @@ namespace M450_Bowling_Counter.Tests
             // Act
             game.Start();
 
+            // Debug: Print captured output
+            var performedMessages = mockOutputProvider.Invocations
+                .Where(i => i.Method.Name == nameof(IOutputProvider.DisplayMessage))
+                .Select(i => i.Arguments[0]?.ToString())
+                .ToList();
+
+            foreach (var message in performedMessages)
+            {
+                System.Diagnostics.Debug.WriteLine($"Output: {message}");
+            }
+
             // Assert
             var player = players.First();
-            Assert.AreEqual(10, player.Frames.Count);
+            Assert.AreEqual(10, player.Frames.Count, "The player should have exactly 10 frames.");
             var lastFrame = player.Frames.Last();
-            Assert.AreEqual(3, lastFrame.Throws.Count);
-            mockOutputProvider.Verify(op => op.DisplayMessage("Strike!"), Times.AtLeastOnce);
+            Assert.AreEqual(3, lastFrame.Throws.Count, "The last frame should have 3 throws due to a strike.");
+
+            // Verify that "Strike!" was displayed at least once
+            mockOutputProvider.Verify(
+                op => op.DisplayMessage(It.Is<string>(s => s.Contains("Strike!"))),
+                Times.AtLeastOnce,
+                "Expected 'Strike!' to be displayed at least once, but it was not."
+            );
         }
+
 
         [TestMethod]
         public void Test_12_TotalScoreCalculationAndDisplay()
         {
-            // Test Case 12: Total Score Calculation and Display
-
             // Arrange
             var mockInputProvider = new Mock<IInputProvider>();
             var mockOutputProvider = new Mock<IOutputProvider>();
 
             // Setup two players with different scores
             var playerNames = new List<string> { "Player1", "Player2" };
-            mockInputProvider.Setup(ip => ip.GetPlayerCount()).Returns(2);
-            mockInputProvider.Setup(ip => ip.GetPlayerName(It.IsAny<int>()))
-                .Returns((int index) => playerNames[index]);
+            mockInputProvider.Setup(ip => ip.GetPlayerCount()).Returns(playerNames.Count);
 
-
-            // Simulate Throws for two players
-            var ThrowsPlayer1 = new List<int> { 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10 }; // Perfect game
-            var ThrowsPlayer2 = new List<int> { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }; // Zero score
-
-            var pinsSequence = mockInputProvider.SetupSequence(ip => ip.GetPinsKnockedDown(It.IsAny<int>()));
-
-            foreach (var pins in ThrowsPlayer1.Concat(ThrowsPlayer2))
+            // Explicitly setup player names for correct indexing
+            for (int i = 0; i < playerNames.Count; i++)
             {
-                pinsSequence = pinsSequence.Returns(pins);
+                int index = i; // Avoid closure issues
+                mockInputProvider.Setup(ip => ip.GetPlayerName(index + 1)).Returns(playerNames[index]);
             }
+
+            // Simulate throws for Player1 (perfect game) and Player2 (all zeros)
+            mockInputProvider.SetupSequence(ip => ip.GetPinsKnockedDown(It.IsAny<int>()))
+                // Player1: Perfect game
+                .Returns(10).Returns(10).Returns(10) // Frames 1-3
+                .Returns(10).Returns(10).Returns(10) // Frames 4-6
+                .Returns(10).Returns(10).Returns(10) // Frames 7-9
+                .Returns(10).Returns(10).Returns(10) // Frame 10 (including extra rolls)
+                                                     // Player2: All zeros
+                .Returns(0).Returns(0).Returns(0).Returns(0).Returns(0).Returns(0)
+                .Returns(0).Returns(0).Returns(0).Returns(0).Returns(0).Returns(0)
+                .Returns(0).Returns(0).Returns(0).Returns(0).Returns(0).Returns(0)
+                .Returns(0).Returns(0); // Total 20 throws for Player2
 
             List<Player> players = PlayerFactory.CreatePlayers(mockInputProvider.Object, mockOutputProvider.Object);
             ScoreBoard scoreBoard = new ScoreBoard(players, mockOutputProvider.Object);
@@ -427,11 +448,19 @@ namespace M450_Bowling_Counter.Tests
             // Assert
             var player1 = players[0];
             var player2 = players[1];
-            Assert.AreEqual(300, player1.CalculateTotalScore());
-            Assert.AreEqual(0, player2.CalculateTotalScore());
+
+            Assert.AreEqual(300, player1.CalculateTotalScore(), "Player1 should have a perfect score of 300.");
+            Assert.AreEqual(0, player2.CalculateTotalScore(), "Player2 should have a score of 0.");
             // Verify that the output provider displays the winner
-            mockOutputProvider.Verify(op => op.DisplayMessage(It.Is<string>(s => s.Contains("300"))), Times.AtLeastOnce);
+            mockOutputProvider.Verify(
+                op => op.DisplayMessage(It.Is<string>(s => s.Contains("300"))),
+                Times.AtLeastOnce,
+                "The score display should include '300'."
+            );
         }
+
+
+
 
         [TestMethod]
         public void Test_13_GameRestart()
