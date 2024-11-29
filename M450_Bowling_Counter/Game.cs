@@ -11,6 +11,7 @@ namespace M450_Bowling_Counter
         private readonly List<Player> _players;
         private readonly IInputProvider _inputProvider;
         private readonly IOutputProvider _outputProvider;
+        private int _foulChance;
 
         public Game(List<Player> players, IInputProvider inputProvider, IOutputProvider outputProvider)
         {
@@ -19,7 +20,7 @@ namespace M450_Bowling_Counter
             _outputProvider = outputProvider;
         }
 
-        public void Start()
+        public void Start(int _foulChance = 5)
         {
             for (int frameNumber = 1; frameNumber <= 10; frameNumber++)
             {
@@ -34,7 +35,7 @@ namespace M450_Bowling_Counter
 
                     // First Throw
                     int firstPinsKnockedDown = _inputProvider.GetPinsKnockedDown(pins);
-                    Throw firstThrow = new Throw(firstPinsKnockedDown);
+                    Throw firstThrow = new Throw(firstPinsKnockedDown, _foulChance);
                     frame.AddThrow(firstThrow);
 
 
@@ -59,7 +60,7 @@ namespace M450_Bowling_Counter
                     {
                         // Normal second throw
                         int secondPinsKnockedDown = _inputProvider.GetPinsKnockedDown(pins - firstThrow.PinsKnockedDown);
-                        Throw secondThrow = new Throw(secondPinsKnockedDown);
+                        Throw secondThrow = new Throw(secondPinsKnockedDown, _foulChance);
                         frame.AddThrow(secondThrow);
 
                         
@@ -88,7 +89,7 @@ namespace M450_Bowling_Counter
 
             // Second Throw
             int secondPinsKnockedDown = _inputProvider.GetPinsKnockedDown(pins);
-            Throw secondThrow = new Throw(secondPinsKnockedDown);
+            Throw secondThrow = new Throw(secondPinsKnockedDown, _foulChance);
             frame.AddThrow(secondThrow);
 
 
@@ -116,7 +117,7 @@ namespace M450_Bowling_Counter
                 pins = secondThrow.PinsKnockedDown == 10 ? 10 : 10 - secondThrow.PinsKnockedDown;
 
                 int thirdPinsKnockedDown = _inputProvider.GetPinsKnockedDown(pins);
-                Throw thirdThrow = new Throw(thirdPinsKnockedDown);
+                Throw thirdThrow = new Throw(thirdPinsKnockedDown, _foulChance);
                 frame.AddThrow(thirdThrow);
 
                 if (thirdThrow.IsFoul)

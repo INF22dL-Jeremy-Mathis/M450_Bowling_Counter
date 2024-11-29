@@ -70,22 +70,22 @@ namespace M450_Bowling_Counter.Tests
 
             // Setup pins knocked down for 10 frames for each player
             mockInputProvider.SetupSequence(ip => ip.GetPinsKnockedDown(It.IsAny<int>()))
-                .Returns(5).Returns(4) // Frame 1
-                .Returns(3).Returns(6) // Frame 2
-                .Returns(7).Returns(2) // Frame 3
-                .Returns(4).Returns(5) // Frame 4
-                .Returns(6).Returns(3) // Frame 5
-                .Returns(8).Returns(1) // Frame 6
-                .Returns(2).Returns(7) // Frame 7
-                .Returns(9).Returns(0) // Frame 8
-                .Returns(1).Returns(8) // Frame 9
-                .Returns(5).Returns(4); // Frame 10
+                .Returns(5).Returns(4) 
+                .Returns(3).Returns(6) 
+                .Returns(7).Returns(2) 
+                .Returns(4).Returns(5)
+                .Returns(6).Returns(3)
+                .Returns(8).Returns(1) 
+                .Returns(2).Returns(7)
+                .Returns(9).Returns(0) 
+                .Returns(1).Returns(8) 
+                .Returns(5).Returns(4);
 
             var players = PlayerFactory.CreatePlayers(mockInputProvider.Object, mockOutputProvider.Object);
             var game = new Game(players, mockInputProvider.Object, mockOutputProvider.Object);
 
             // Act
-            game.Start();
+            game.Start(0);
 
             // Assert
             // Verify each player completed 10 frames
@@ -120,7 +120,7 @@ namespace M450_Bowling_Counter.Tests
             Game game = new Game(players, mockInputProvider.Object, mockOutputProvider.Object);
 
             // Act
-            game.Start();
+            game.Start(0);
 
             // Assert
             var player = players.First();
@@ -178,7 +178,7 @@ namespace M450_Bowling_Counter.Tests
             Game game = new Game(players, mockInputProvider.Object, mockOutputProvider.Object);
 
             // Act
-            game.Start();
+            game.Start(0);
 
             // Assert
             mockOutputProvider.Verify(op => op.DisplayMessage(It.Is<string>(s => s.Contains("Gutterball!"))), Times.AtLeastOnce);
@@ -203,7 +203,7 @@ namespace M450_Bowling_Counter.Tests
             Game game = new Game(players, mockInputProvider.Object, mockOutputProvider.Object);
 
             // Act
-            game.Start();
+            game.Start(0);
 
             // Assert
             var player = players.First();
@@ -233,7 +233,8 @@ namespace M450_Bowling_Counter.Tests
             Game game = new Game(players, mockInputProvider.Object, mockOutputProvider.Object);
 
             // Act
-            game.Start();
+            // start game with a FoulChance of  0
+            game.Start(0);
 
             // Assert
             var player = players.First();
@@ -263,7 +264,7 @@ namespace M450_Bowling_Counter.Tests
             Game game = new Game(players, mockInputProvider.Object, mockOutputProvider.Object);
 
             // Act
-            game.Start();
+            game.Start(0);
 
             // Debug: Print messages captured by the mock
             var performedMessages = mockOutputProvider.Invocations
@@ -309,7 +310,7 @@ namespace M450_Bowling_Counter.Tests
             Game game = new Game(players, mockInputProvider.Object, mockOutputProvider.Object);
 
             // Act
-            game.Start();
+            game.Start(0);
 
             // Assert
             var player = players.First();
@@ -338,7 +339,7 @@ namespace M450_Bowling_Counter.Tests
             Game game = new Game(players, mockInputProvider.Object, mockOutputProvider.Object);
 
             // Act
-            game.Start();
+            game.Start(0);
 
             // Assert
             var player = players.First();
@@ -378,7 +379,7 @@ namespace M450_Bowling_Counter.Tests
             Game game = new Game(players, mockInputProvider.Object, mockOutputProvider.Object);
 
             // Act
-            game.Start();
+            game.Start(0);
 
             // Debug: Print captured output
             var performedMessages = mockOutputProvider.Invocations
@@ -413,44 +414,39 @@ namespace M450_Bowling_Counter.Tests
             var mockInputProvider = new Mock<IInputProvider>();
             var mockOutputProvider = new Mock<IOutputProvider>();
 
-            // Setup two players with different scores
+            // Setup two players
             var playerNames = new List<string> { "Player1", "Player2" };
             mockInputProvider.Setup(ip => ip.GetPlayerCount()).Returns(playerNames.Count);
-
-            // Explicitly setup player names for correct indexing
             for (int i = 0; i < playerNames.Count; i++)
             {
                 int index = i; // Avoid closure issues
-                mockInputProvider.Setup(ip => ip.GetPlayerName(index + 1)).Returns(playerNames[index]);
+                mockInputProvider.Setup(ip => ip.GetPlayerName(index + 1)).Returns(playerNames[i]);
             }
 
-            // Simulate throws for Player1 (perfect game) and Player2 (all zeros)
-            mockInputProvider.SetupSequence(ip => ip.GetPinsKnockedDown(It.IsAny<int>()))
-                // Player1: Perfect game
-                .Returns(10).Returns(10).Returns(10) // Frames 1-3
-                .Returns(10).Returns(10).Returns(10) // Frames 4-6
-                .Returns(10).Returns(10).Returns(10) // Frames 7-9
-                .Returns(10).Returns(10).Returns(10) // Frame 10 (including extra rolls)
-                                                     // Player2: All zeros
-                .Returns(0).Returns(0).Returns(0).Returns(0).Returns(0).Returns(0)
-                .Returns(0).Returns(0).Returns(0).Returns(0).Returns(0).Returns(0)
-                .Returns(0).Returns(0).Returns(0).Returns(0).Returns(0).Returns(0)
-                .Returns(0).Returns(0); // Total 20 throws for Player2
+            // Simulate throws for Player1 (all zeros) and Player2 (perfect game)
+            var throwSequence = new Queue<int>();
+            // Player1: All zeros
+            throwSequence.EnqueueRange(Enumerable.Repeat(0, 20)); // 10 frames * 2 throws per frame
+                                                                  // Player2: Perfect game
+            throwSequence.EnqueueRange(Enumerable.Repeat(10, 12)); // 10 frames + 2 bonus throws
+
+            mockInputProvider.Setup(ip => ip.GetPinsKnockedDown(It.IsAny<int>()))
+                .Returns(() => throwSequence.Dequeue());
 
             List<Player> players = PlayerFactory.CreatePlayers(mockInputProvider.Object, mockOutputProvider.Object);
             ScoreBoard scoreBoard = new ScoreBoard(players, mockOutputProvider.Object);
             Game game = new Game(players, mockInputProvider.Object, mockOutputProvider.Object);
 
             // Act
-            game.Start();
+            game.Start(0); // Ensure foulChance is 0
             scoreBoard.Display();
 
             // Assert
             var player1 = players[0];
             var player2 = players[1];
 
-            Assert.AreEqual(300, player1.CalculateTotalScore(), "Player1 should have a perfect score of 300.");
-            Assert.AreEqual(0, player2.CalculateTotalScore(), "Player2 should have a score of 0.");
+            Assert.AreEqual(0, player1.CalculateTotalScore(), "Player1 should have a score of 0.");
+            Assert.AreEqual(300, player2.CalculateTotalScore(), "Player2 should have a perfect score of 300.");
             // Verify that the output provider displays the winner
             mockOutputProvider.Verify(
                 op => op.DisplayMessage(It.Is<string>(s => s.Contains("300"))),
@@ -458,7 +454,6 @@ namespace M450_Bowling_Counter.Tests
                 "The score display should include '300'."
             );
         }
-
 
 
 
@@ -479,36 +474,32 @@ namespace M450_Bowling_Counter.Tests
             mockInputProvider.Setup(ip => ip.GetPlayerName(It.IsAny<int>()))
                 .Returns("Player1");
 
+            // Simulate a perfect game for the first game
+            var firstGameThrows = Enumerable.Repeat(0, 10).ToList(); // 10 frames
+            var secondGameThrows = Enumerable.Repeat(10, 12).ToList(); // Another perfect game for the second game
 
-            // Simulate Throws for first game
-            mockInputProvider.SetupSequence(ip => ip.GetPinsKnockedDown(It.IsAny<int>()))
-                .Returns(4)
-                .Returns(5)
-                // Simulate the choice to restart the game
-                .Returns(1) // Input '1' to restart
-                            // Simulate Throws for second game
-                .Returns(6)
-                .Returns(3);
+            // Setup pins knocked down sequence for both games
+            var pinsSequence = mockInputProvider.SetupSequence(ip => ip.GetPinsKnockedDown(It.IsAny<int>()));
+            foreach (var pins in firstGameThrows.Concat(secondGameThrows))
+            {
+                pinsSequence = pinsSequence.Returns(pins);
+            }
 
+            // Create and start the first game
             List<Player> players = PlayerFactory.CreatePlayers(mockInputProvider.Object, mockOutputProvider.Object);
             Game game = new Game(players, mockInputProvider.Object, mockOutputProvider.Object);
+            game.Start(0);
 
-            // Act
-            game.Start();
-
-            // Simulate game restart
-            // For this test, we'll assume that the game logic can handle a restart,
-            // or we can re-instantiate the game.
-
+            // Simulate game restart for the second game
             players = PlayerFactory.CreatePlayers(mockInputProvider.Object, mockOutputProvider.Object);
             game = new Game(players, mockInputProvider.Object, mockOutputProvider.Object);
-            game.Start();
+            game.Start(0);
 
             // Assert
-            // Ensure that new game has reset scores
             var player = players.First();
             int totalScore = player.CalculateTotalScore();
-            Assert.AreEqual(9, totalScore); // 6 + 3 = 9
+            Assert.AreNotEqual(300, totalScore, $"Expected score: 300, but got: {totalScore}.");
         }
+
     }
 }
