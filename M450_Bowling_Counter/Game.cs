@@ -11,7 +11,7 @@ namespace M450_Bowling_Counter
         private readonly List<Player> _players;
         private readonly IInputProvider _inputProvider;
         private readonly IOutputProvider _outputProvider;
-        private int _foulChance;
+        private readonly int _foulChance;
 
         public Game(List<Player> players, IInputProvider inputProvider, IOutputProvider outputProvider)
         {

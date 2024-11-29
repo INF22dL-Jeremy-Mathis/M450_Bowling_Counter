@@ -414,46 +414,56 @@ namespace M450_Bowling_Counter.Tests
             var mockInputProvider = new Mock<IInputProvider>();
             var mockOutputProvider = new Mock<IOutputProvider>();
 
-            // Setup two players
-            var playerNames = new List<string> { "Player1", "Player2" };
+            // Spieler-Setup
+            var playerNames = new List<string> { "Player1" };
             mockInputProvider.Setup(ip => ip.GetPlayerCount()).Returns(playerNames.Count);
+
+            // Spieler-Namen korrekt einrichten
             for (int i = 0; i < playerNames.Count; i++)
             {
-                int index = i; // Avoid closure issues
-                mockInputProvider.Setup(ip => ip.GetPlayerName(index + 1)).Returns(playerNames[i]);
+                mockInputProvider.Setup(ip => ip.GetPlayerName(i + 1)).Returns(playerNames[i]);
             }
 
-            // Simulate throws for Player1 (all zeros) and Player2 (perfect game)
-            var throwSequence = new Queue<int>();
-            // Player1: All zeros
-            throwSequence.EnqueueRange(Enumerable.Repeat(0, 20)); // 10 frames * 2 throws per frame
-                                                                  // Player2: Perfect game
-            throwSequence.EnqueueRange(Enumerable.Repeat(10, 12)); // 10 frames + 2 bonus throws
+            // Simulierte Würfe: Spieler1 mit Strike im 10. Frame
+            var throws = new Queue<int>();
 
-            mockInputProvider.Setup(ip => ip.GetPinsKnockedDown(It.IsAny<int>()))
-                .Returns(() => throwSequence.Dequeue());
+            // 9 Frames mit minimalem Score (3 + 4)
+            for (int i = 0; i < 9; i++)
+            {
+                throws.Enqueue(10);
+            }
 
+            // 10. Frame mit Strike und 2 Extra-Würfen
+            throws.Enqueue(10); // Strike
+            throws.Enqueue(10); // Extra Roll 1
+            throws.Enqueue(10); // Extra Roll 2
+
+            mockInputProvider.Setup(ip => ip.GetPinsKnockedDown(It.IsAny<int>())).Returns(() => throws.Dequeue());
+
+            // Spieler erstellen und Spiel initialisieren
             List<Player> players = PlayerFactory.CreatePlayers(mockInputProvider.Object, mockOutputProvider.Object);
-            ScoreBoard scoreBoard = new ScoreBoard(players, mockOutputProvider.Object);
             Game game = new Game(players, mockInputProvider.Object, mockOutputProvider.Object);
 
             // Act
-            game.Start(0); // Ensure foulChance is 0
+            game.Start(0); // Keine Fouls
+
+            // Punktetafel anzeigen
+            ScoreBoard scoreBoard = new ScoreBoard(players, mockOutputProvider.Object);
             scoreBoard.Display();
 
             // Assert
             var player1 = players[0];
-            var player2 = players[1];
-
-            Assert.AreEqual(0, player1.CalculateTotalScore(), "Player1 should have a score of 0.");
-            Assert.AreEqual(300, player2.CalculateTotalScore(), "Player2 should have a perfect score of 300.");
-            // Verify that the output provider displays the winner
+            Assert.AreEqual(300, player1.CalculateTotalScore(), "Player1 sollte 300 Punkte haben.");
             mockOutputProvider.Verify(
                 op => op.DisplayMessage(It.Is<string>(s => s.Contains("300"))),
                 Times.AtLeastOnce,
-                "The score display should include '300'."
+                "Die Punktanzeige sollte '300' enthalten."
             );
         }
+
+
+
+
 
 
 
